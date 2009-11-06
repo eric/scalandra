@@ -19,11 +19,10 @@ trait Write[A, B, C] { this : Base[A, B, C] =>
    * Insert or update value of single column
    */
   def update(path : ColumnPath[A, B], value : C) {
-    client.insert(keyspace, path.key, new cassandra.ColumnPath(
-      path.columnFamily,
-      path.superColumn.map(superColumn.serialize(_)).getOrElse(null),
-      column.serialize(path.column)
-    ), this.value.serialize(value), System.currentTimeMillis, writeConsistency)
+    val cp = new cassandra.ColumnPath(path.columnFamily)
+    cp.setSuper_column(path.superColumn.map(superColumn.serialize(_)).getOrElse(null))
+    cp.setColumn(column.serialize(path.column))
+    client.insert(keyspace, path.key, cp, this.value.serialize(value), System.currentTimeMillis, writeConsistency)
   }
 
   def update(path : ColumnParent[A], value : Iterable[Pair[B, C]]) {
@@ -50,10 +49,9 @@ trait Write[A, B, C] { this : Base[A, B, C] =>
   def insertNormal(path : Path, data : Iterable[Pair[B, C]]) {
     implicit def convert(data : Iterable[Pair[B, C]]) : List[cassandra.ColumnOrSuperColumn] = {
       data.map { case(k, v) =>
-        new cassandra.ColumnOrSuperColumn(
-          buildColumn(k, v),
-          null
-        )
+        val cosc = new cassandra.ColumnOrSuperColumn
+        cosc.setColumn(buildColumn(k, v))
+        cosc
       }.toList
     }
     insert(path, data)
@@ -76,10 +74,9 @@ trait Write[A, B, C] { this : Base[A, B, C] =>
     val cfm = new LinkedHashMap[String, JavaList[cassandra.ColumnOrSuperColumn]]
 
     val list = data.map { case(key, value) =>
-      new cassandra.ColumnOrSuperColumn(
-        null,
-        new cassandra.SuperColumn(superColumn.serialize(key), value)
-      )
+      val cosc = new cassandra.ColumnOrSuperColumn
+      cosc.setSuper_column(new cassandra.SuperColumn(superColumn.serialize(key), value))
+      cosc
     }.toList
 
     insert(path, list)
@@ -96,11 +93,9 @@ trait Write[A, B, C] { this : Base[A, B, C] =>
    */
   def remove(path : ColumnParent[A]) {
     def convertPath(c : ColumnParent[A]) : cassandra.ColumnPath = {
-      new cassandra.ColumnPath(
-        c.columnFamily,
-        c.superColumn.map(superColumn.serialize(_)).getOrElse(null),
-        null
-      )
+      val cp = new cassandra.ColumnPath(c.columnFamily)
+      cp.setSuper_column(c.superColumn.map(superColumn.serialize(_)).getOrElse(null))
+      cp
     }
 
     remove(path.key, convertPath(path))
@@ -113,11 +108,9 @@ trait Write[A, B, C] { this : Base[A, B, C] =>
    */
   def remove(path : ColumnPath[A, B]) {
     def convertPath(c : ColumnPath[A, B]) : cassandra.ColumnPath = {
-      new cassandra.ColumnPath(
-        c.columnFamily,
-        c.superColumn.map(superColumn.serialize(_)).getOrElse(null),
-        column.serialize(c.column)
-      )
+      val cp = new cassandra.ColumnPath(c.columnFamily)
+      cp.setSuper_column(c.superColumn.map(superColumn.serialize(_)).getOrElse(null))
+      cp.setColumn(column.serialize(c.column))
     }
 
     remove(path.key, convertPath(path))

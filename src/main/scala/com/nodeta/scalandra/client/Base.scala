@@ -24,11 +24,16 @@ trait Base[A, B, C] {
   class InvalidPathException(reason : String) extends IllegalArgumentException(reason) {}
 
   protected def getColumnParent(path : ColumnParent[A]) : cassandra.ColumnParent = {
-    new cassandra.ColumnParent(path.columnFamily, path.superColumn.map(superColumn.serialize(_)).getOrElse(null))
+    val parent = new cassandra.ColumnParent(path.columnFamily)
+    parent.setSuper_column(path.superColumn.map(superColumn.serialize(_)).getOrElse(null))
+    parent
   }
 
   protected def getColumnPath(path : ColumnPath[A, B]) : cassandra.ColumnPath = {
-    new cassandra.ColumnPath(path.columnFamily, path.superColumn.map(superColumn.serialize(_)).getOrElse(null), column.serialize(path.column))
+    val c = new cassandra.ColumnPath(path.columnFamily)
+    c.setSuper_column(path.superColumn.map(superColumn.serialize(_)).getOrElse(null))
+    c.setColumn(column.serialize(path.column))
+    c
   }
 
   protected def getColumnPath(path : ColumnParent[A]) : cassandra.ColumnPath = {
@@ -36,6 +41,8 @@ trait Base[A, B, C] {
     val s = path.superColumn.map(superColumn.serialize(_)).getOrElse({
       throw new InvalidPathException("Super Column is not defined")
     })
-    new cassandra.ColumnPath(path.columnFamily, s, null)
+    val c = new cassandra.ColumnPath(path.columnFamily)
+    c.setSuper_column(s)
+    c
   }
 }

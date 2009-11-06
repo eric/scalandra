@@ -17,7 +17,9 @@ import scala.collection.immutable.ListMap
 trait Read[A, B, C] { this : Base[A, B, C] =>
   private class SlicePredicate[T](serializer : Serializer[T]) {
     def apply(items : Collection[T]) : cassandra.SlicePredicate = {
-      new cassandra.SlicePredicate(items.map(item => serializer(item)).toList, null)
+      val sp = new cassandra.SlicePredicate
+      sp.setColumn_names(items.map(item => serializer(item)).toList)
+      sp
     }
 
     def apply(start : Option[T], finish : Option[T], order : Order, count : Int) : cassandra.SlicePredicate = {
@@ -25,10 +27,9 @@ trait Read[A, B, C] { this : Base[A, B, C] =>
         o.map(serializer(_)).getOrElse(serializer.empty)
       }
 
-      new cassandra.SlicePredicate(
-        null,
-        new cassandra.SliceRange(start, finish, order.toBoolean, count)
-      )
+      val sp = new cassandra.SlicePredicate
+      sp.setSlice_range(new cassandra.SliceRange(start, finish, order.toBoolean, count))
+      sp
     }
   }
 
